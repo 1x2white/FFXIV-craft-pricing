@@ -3,7 +3,6 @@ import os
 import requests
 
 
-OFFLINE_MODE = False
 WORLD = 'Shiva' # id: 67
 
 XIVAPI_URL = 'https://xivapi.com/'
@@ -114,6 +113,7 @@ def get_recipe_tree(recipe_id):
                         "amount": subnode['AmountIngredient' + str(i)],
                         "icon": subnode['ItemIngredient' + str(i)]['Icon']
                     })
+                    item['ingredients'][index]["amount_result"] = subnode['AmountResult'][0],
         # print('\n')
         cache(cache_type='recipe', data=item)
 
@@ -133,22 +133,17 @@ def get_prices(item):
 
     item_ids = list(set(item_ids))
     # print(item_ids)
-    
-    # Get prices JSON for all items in @item_ids
-    if OFFLINE_MODE:
-        with open('prices.json', 'r', encoding='UTF-8') as f:
-            prices = json.loads(f.read())
-    else:
-        url = f"{UNIVERSALIS_URL}{WORLD}/{','.join(str(itm) for itm in item_ids)}"
-        url += "?listings=10&entries=0"
-        # print(url)
-        while True:
-            res = requests.get(url, verify=False)
-            
-            # universalis api is overloaded, may take some attempts
-            if res.status_code != 504:
-                prices = json.loads(res.text)
-                break
+
+    url = f"{UNIVERSALIS_URL}{WORLD}/{','.join(str(itm) for itm in item_ids)}"
+    url += "?listings=10&entries=0"
+    # print(url)
+    while True:
+        res = requests.get(url, verify=False)
+        
+        # universalis api is overloaded, may take some attempts
+        if res.status_code != 504:
+            prices = json.loads(res.text)
+            break
     
     sum_itm = 0
     for itm in item['ingredients']:
