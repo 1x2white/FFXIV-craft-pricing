@@ -1,6 +1,7 @@
 import json
 import os
 import requests
+import sys
 
 
 WORLD = 'Shiva' # id: 67
@@ -12,6 +13,7 @@ UNIVERSALIS_URL = 'https://universalis.app/api/v2/'
 XIVAPI_RATE_LIMIT = 20
 UNIVERSALIS_RATE_LIMIT = 25  
 
+CHECK_CERT = True   # deactivate if SSL errors occur
 
 def get_cache_folder(cache_type):
     if cache_type == 'recipe':
@@ -52,7 +54,7 @@ def get_cache(obj_id, cache_type):
     
 
 def get_json_from_api(url):
-    res = requests.get(url, verify=False)  # ssl? stupid corporate proxy/firewall
+    res = requests.get(url, verify=True)  # ssl? stupid corporate proxy/firewall
     return json.loads(res.text)
     
 
@@ -77,7 +79,7 @@ def get_recipe_tree(recipe_id):
     if is_cached(recipe_id, cache_type='recipe'):
         return get_cache(recipe_id)
     else:
-        json_obj = get_recipe_json(recipe_id)  ## TODO fetch from api by item ID or maybe serach by name -> get id -> fetch
+        json_obj = get_recipe_json(recipe_id)
         item = {}
         item['name'] = json_obj['ItemResult']['Name']
         item['id'] = json_obj['ItemResult']['ID']
@@ -113,7 +115,7 @@ def get_recipe_tree(recipe_id):
                         "amount": subnode['AmountIngredient' + str(i)],
                         "icon": subnode['ItemIngredient' + str(i)]['Icon']
                     })
-                    item['ingredients'][index]["amount_result"] = subnode['AmountResult'][0],
+                    item['ingredients'][index]["amount_result"] = subnode['AmountResult']
         # print('\n')
         cache(cache_type='recipe', data=item)
 
@@ -136,12 +138,15 @@ def get_prices(item):
 
     url = f"{UNIVERSALIS_URL}{WORLD}/{','.join(str(itm) for itm in item_ids)}"
     url += "?listings=10&entries=0"
-    # print(url)
+    
+    print("Fetching prices...")
     while True:
-        res = requests.get(url, verify=False)
+        res = requests.get(url, verify=True)
         
-        # universalis api is overloaded, may take some attempts
-        if res.status_code != 504:
+        # universalis api is overloaded most of the time, may take a few attempts
+        if res.status_code == 504:
+            print("Prices API overloaded. Retrying...")
+        else:
             prices = json.loads(res.text)
             break
     
@@ -166,26 +171,37 @@ def get_prices(item):
                 quantity += prices['items'][str(id_)]['listings'][listing_n]['quantity']
                 listing_n += 1
             itm_2['price'] = prices['items'][str(id_)]['listings'][listing_n]['pricePerUnit'] # without tax
-            print(itm_2['name'], 'costs', itm_2['price'], 'x' + str(itm_2['amount']))
+            # print(itm_2['name'], 'costs', itm_2['price'], 'x' + str(itm_2['amount']))
             sum_itm_2 += itm_2['price']*itm_2['amount']
         if len(itm['ingredients']) != 0:
-            itm['price_if_crafted'] = sum_itm_2
+            itm['price_if_crafted'] = int(sum_itm_2/itm['amount_result'])
         
-        sum_itm += itm['price']*itm['amount'] 
+        sum_itm += itm['price']*itm['amount']
     
     return item
+
+
+def display_result(item):  # name subject to change
+    txt = ''
+    txt += f"{item['name']:24.23}{'#':>4}{'craft':>7}{'buy':>7}\n"
+    for ingredient in item['ingredients']:
+        txt += f"  {ingredient['name']:22.21}{ingredient['amount']:>4}{ingredient.get('price_if_crafted', ''):>7}{ingredient['price']:>7}\n"
+        for sub_ingredient in ingredient['ingredients']:
+            txt += f"    {sub_ingredient['name']:20.19}{sub_ingredient['amount']:4}{'':>7}{sub_ingredient['price']:>7}\n"
+    return txt
     
 
-def main(item_name):
+def generate_result(item_name):
+    #item_name = sys.argv[1]
     cache()
     recipe_id = item_name_to_id(item_name)
     item = get_recipe_tree(recipe_id)
     item = get_prices(item)
-    print(json.dumps(item))
-    
+    return display_result(item)
 
-#main("Book of Ra'Kaznar")
-main("Acqua Pazza")
+    
+# main()
+#main("Acqua Pazza")
 
 # 42459 = Book of Ra'Kaznar (item) vs 
 # 5985  = Recipe
