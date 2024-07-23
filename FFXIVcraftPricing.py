@@ -13,7 +13,7 @@ UNIVERSALIS_URL = 'https://universalis.app/api/v2/'
 XIVAPI_RATE_LIMIT = 20
 UNIVERSALIS_RATE_LIMIT = 25  
 
-CHECK_CERT = True   # deactivate if SSL errors occur
+CHECK_CERT = False   # deactivate if SSL errors occur
 
 def get_cache_folder(cache_type):
     if cache_type == 'recipe':
@@ -54,7 +54,7 @@ def get_cache(obj_id, cache_type):
     
 
 def get_json_from_api(url):
-    res = requests.get(url, verify=True)  # ssl? stupid corporate proxy/firewall
+    res = requests.get(url, verify=CHECK_CERT)  # ssl? stupid corporate proxy/firewall
     return json.loads(res.text)
     
 
@@ -141,7 +141,7 @@ def get_prices(item):
     
     print("Fetching prices...")
     while True:
-        res = requests.get(url, verify=True)
+        res = requests.get(url, verify=CHECK_CERT)
         
         # universalis api is overloaded most of the time, may take a few attempts
         if res.status_code == 504:
@@ -197,7 +197,8 @@ def generate_result(item_name):
     recipe_id = item_name_to_id(item_name)
     item = get_recipe_tree(recipe_id)
     item = get_prices(item)
-    return display_result(item)
+    return item
+    #return display_result(item)
 
     
 # main()

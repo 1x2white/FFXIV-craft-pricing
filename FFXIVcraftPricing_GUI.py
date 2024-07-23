@@ -1,43 +1,108 @@
 import sys
-from PySide6 import QtCore, QtWidgets, QtGui
+from PyQt6 import QtCore, QtGui, QtWidgets
+from PyQt6.QtCore import Qt
 import FFXIVcraftPricing as XIVCP
 
 
-class MyWidget(QtWidgets.QWidget):
+BASE_TITLE = "XIV Craft Pricing"
+
+
+class TableModel(QtCore.QAbstractTableModel):
+    def __init__(self, data):
+        super(TableModel, self).__init__()
+        self._data = data
+        self.columns = ["Item", "Amount", "P(c)", "P(b)"]
+    
+    def headerData(self, section, orientation, role):
+        if orientation == Qt.Orientation.Horizontal and role == Qt.ItemDataRole.DisplayRole:
+            return self.columns[section]
+        if orientation == Qt.Orientation.Vertical and role == Qt.ItemDataRole.DisplayRole:
+            return ""
+    
+    def data(self, index, role):
+        if role == Qt.ItemDataRole.DisplayRole:
+            return self._data[index.row()][index.column()]
+            
+        if role == Qt.ItemDataRole.TextAlignmentRole:
+            value = self._data[index.row()][index.column()]
+            
+            if isinstance(value, int) or isinstance(value, float):
+                return Qt.AlignmentFlag.AlignVCenter + Qt.AlignmentFlag.AlignRight
+                
+        if role == Qt.ItemDataRole.BackgroundRole:
+            value = self._data[index.row()][index.column()]
+            if index.column() == 2:
+                if value <= int(self._data[index.row()][index.column()+1] or 0):
+                    return QtGui.QColor('#f1ffe8')
+                #if self._data[index.row()][index.column()+1] == '':
+                    
+
+    def rowCount(self, index):
+        # The length of the outer list.
+        return len(self._data)
+
+    def columnCount(self, index):
+        # The following takes the first sub-list, and returns
+        # the length (only works if all rows are an equal length)
+        return len(self._data[0])
+
+
+class MainWindow(QtWidgets.QMainWindow):
     def __init__(self):
-        super().__init__()
+        super().__init__()     
         
-        # layout
-        self.main_frame = QtWidgets.QFrame(self)
-        self.layout_wrapper = QtWidgets.QVBoxLayout(self.main_frame)
-        self.layout_search = QtWidgets.QHBoxLayout(self.layout_wrapper)
+        self.setWindowTitle(BASE_TITLE)
+        self.setFixedSize(500, 500)
+
+        self.table = QtWidgets.QTableView()
+
+        search_str = "Acqua Pazza"
+        self.setWindowTitle(BASE_TITLE + ' - ' + search_str)
+        #data = XIVCP.generate_result(search_str)
+        with open('tmp.json', 'r', encoding="utf-8") as f:
+            import json
+            #f.write(json.dumps(data))
+            data = json.loads(f.read())
+
+        data_tbl = []
         
-        # elements
-        self.txt_query = QtWidgets.QLineEdit("", placeholderText="Enter item name")
-        self.btn_submit = QtWidgets.QPushButton("search")
-        self.txt_processing = QtWidgets.QLabel("results come here", alignment=QtCore.Qt.AlignCenter)
-        self.txt_result = QtWidgets.QLabel("", alignment=QtCore.Qt.AlignLeft)
+        for itm in data.get('ingredients'):
+            name = itm.get('name')
+            if itm.get('amount_result', 1) > 1:
+                name += f" ({str(itm['amount_result'])})"
+            data_tbl.append([
+                name, 
+                itm.get('amount'), 
+                itm.get('price'), 
+                itm.get('price_if_crafted', '')
+            ])
+            
+            for itm_itm in itm.get('ingredients'):
+                data_tbl.append([
+                    '    ' + itm_itm.get('name'), 
+                    itm_itm.get('amount'), 
+                    itm_itm.get('price'), 
+                    itm_itm.get('price_if_crafted', '')
+                ])
         
-        # add elements to layout
-        self.layout_search.addWidget(self.txt_query)
-        self.layout_search.addWidget(self.btn_submit)
-        
-        self.layout_wrapper.addWidget(self.txt_result)
-
-        self.btn_submit.clicked.connect(self.search)
-
-    @QtCore.Slot()
-    def search(self):
-        self.query = self.txt_query.text()
-        self.txt_result.setText(sys.stdout)
-        self.txt_result.setText(XIVCP.generate_result(self.query))
+        self.model = TableModel(data_tbl)
         
 
-if __name__ == "__main__":
-    app = QtWidgets.QApplication([])
+        self.table.setModel(self.model)
+        self.setCentralWidget(self.table)
+        
+        header = self.table.horizontalHeader() 
+        header.setSectionResizeMode(0, QtWidgets.QHeaderView.ResizeMode.Stretch)
+        header.setSectionResizeMode(1, QtWidgets.QHeaderView.ResizeMode.Fixed)
+        header.setSectionResizeMode(2, QtWidgets.QHeaderView.ResizeMode.Fixed)
+        header.setSectionResizeMode(3, QtWidgets.QHeaderView.ResizeMode.Fixed)
+        
+        header.resizeSection(1, int(500/2/3))
+        header.resizeSection(2, int(500/2/3))
+        header.resizeSection(3, int(500/2/3))
 
-    widget = MyWidget()
-    widget.resize(800, 600)
-    widget.show()
 
-    sys.exit(app.exec())
+app=QtWidgets.QApplication(sys.argv)
+window=MainWindow()
+window.show()
+sys.exit(app.exec())
