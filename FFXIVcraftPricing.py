@@ -1,8 +1,8 @@
 import json
 import os
 import time
-
 import requests
+from typing import Union
 
 
 WORLD = 'Shiva'  # id: 67
@@ -44,9 +44,10 @@ def cache(cache_type: str = None, data: dict = None) -> None:
         f.write(json.dumps(data))
         
 
-def is_cached(obj_id: int, cache_type=None) -> bool:
-    folder = 'cache/recipes/'
-    return os.path.isfile(f"{folder}{obj_id}.json")
+def is_cached(obj_id: Union[int, str], cache_type: str) -> bool:
+    folder = get_cache_folder(cache_type)
+    ext = {'recipe': 'json', 'icon': 'png'}
+    return os.path.isfile(f"{folder}{obj_id}.{ext.get(cache_type)}")
     
 
 def get_cache(obj_id: int, cache_type: str) -> dict:
@@ -156,19 +157,19 @@ def get_prices(item: dict) -> dict:
         # this may result in a higher price though
         quantity = 0
         listing_n = 0
-        while quantity < itm.get('amount'):
-            quantity += prices.get('items').get(str(id_)).get('listings').get(listing_n).get('quantity')
+        while quantity < itm.get('amount') and listing_n >= len(prices.get('items').get(str(id_)).get('listings')):
+            quantity += prices.get('items').get(str(id_)).get('listings')[listing_n].get('quantity')
             listing_n += 1
-        itm['price'] = prices.get('items').get(str(id_)).get('listings').get(listing_n).get('pricePerUnit')
+        itm['price'] = prices.get('items').get(str(id_)).get('listings')[listing_n].get('pricePerUnit')
         sum_itm_2 = 0
         for itm_2 in itm.get('ingredients'):
             id_ = itm_2['id']
             quantity = 0
             listing_n = 0
             while quantity < itm_2.get('amount'):
-                quantity += prices.get('items').get(str(id_)).get('listings').get(listing_n).get('quantity')
+                quantity += prices.get('items').get(str(id_)).get('listings')[listing_n].get('quantity')
                 listing_n += 1
-            itm_2['price'] = prices.get('items').get(str(id_)).get('listings').get(listing_n).get('pricePerUnit')
+            itm_2['price'] = prices.get('items').get(str(id_)).get('listings')[listing_n].get('pricePerUnit')
             sum_itm_2 += itm_2.get('price')*itm_2.get('amount')
         if len(itm.get('ingredients')) != 0:
             itm['price_if_crafted'] = int(sum_itm_2/itm.get('amount_result'))
@@ -200,7 +201,7 @@ def generate_result(item_name):
 
 def get_icon_list(recipe: dict) -> list[str]:
     icons = [recipe.get('icon')]
-    for item in recipe:
+    for item in recipe.get('ingredients'):
         icons.append(item.get('icon'))
         for subitem in item.get('ingredients'):
             icons.append(subitem.get('icon'))
@@ -212,15 +213,14 @@ def get_icons(icon_urls: list[str]) -> None:
     icon_urls = list(set(icon_urls))  # make sure every url is unique to reduce overhead
     for num, url in enumerate(icon_urls):
         icon_name = url.split('/')[-1]
-        res = requests.get(url, verify=CHECK_CERT, stream=True)
+
+        # don't fetch again if icon is already present
+        if is_cached(icon_name.split('.')[0], 'icon'):
+            continue
+        res = requests.get(XIVAPI_URL + url, verify=CHECK_CERT, stream=True)
         if res.status_code == 200:
             with open('cache/icons/' + icon_name, 'wb') as f:
                 f.write(res.content)
         # respect the API's rate limit. Better way would be to time the actual request, but this way is quick and dirty.
         if num % XIVAPI_RATE_LIMIT == 0 and num > 0:
             time.sleep(1.)
-
-
-# TODO
-# - fetch icons online
-# - cache icons

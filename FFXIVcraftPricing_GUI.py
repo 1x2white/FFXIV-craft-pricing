@@ -53,13 +53,13 @@ class MainWindow(QtWidgets.QMainWindow):
 
         search_str = "Acqua Pazza"
         self.setWindowTitle(BASE_TITLE + ' - ' + search_str)
-        data = XIVcp.generate_result(search_str)
-        '''
+        # data = XIVcp.generate_result(search_str)
+
         with open('tmp.json', 'r', encoding="utf-8") as f:
             import json
             # f.write(json.dumps(data))
             data = json.loads(f.read())
-        '''
+
         data_tbl = []
         
         for itm in data.get('ingredients'):
