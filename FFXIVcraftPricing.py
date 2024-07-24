@@ -200,7 +200,7 @@ def generate_result(item_name):
 
 
 def get_icon_list(recipe: dict) -> list[str]:
-    icons = [recipe.get('icon')]
+    icons = [recipe.get('icon')[0]]
     for item in recipe.get('ingredients'):
         icons.append(item.get('icon'))
         for subitem in item.get('ingredients'):
@@ -210,6 +210,7 @@ def get_icon_list(recipe: dict) -> list[str]:
 
 def get_icons(icon_urls: list[str]) -> None:
     # fetch icons from api and cache them
+    # print(icon_urls)
     icon_urls = list(set(icon_urls))  # make sure every url is unique to reduce overhead
     for num, url in enumerate(icon_urls):
         icon_name = url.split('/')[-1]
