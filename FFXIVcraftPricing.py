@@ -38,9 +38,9 @@ def cache(cache_type: str = None, data: dict = None) -> None:
     folder = get_cache_folder(cache_type)
 
     # early return: file already cached
-    if os.path.isfile(f"{folder}{data['id']}.json"):
+    if os.path.isfile(f"{folder}{data.get('id')}.json"):
         return
-    with open(f"{folder}{data['id']}.json", 'w', encoding='UTF-8') as f:
+    with open(f"{folder}{data.get('id')}.json", 'w', encoding='UTF-8') as f:
         f.write(json.dumps(data))
         
 
@@ -66,8 +66,8 @@ def item_name_to_id(name: str) -> int:
         
     id_ = None
     for result in search['Results']:
-        if result['UrlType'] == 'Recipe':
-            id_ = result['ID']
+        if result.get('UrlType') == 'Recipe':
+            id_ = result.get('ID')
             break
     return id_
     
@@ -83,9 +83,9 @@ def get_recipe_tree(recipe_id: int) -> dict:
     else:
         json_obj = get_recipe_json(recipe_id)
         item = {
-            'name': json_obj['ItemResult']['Name'],
-            'id': json_obj['ItemResult']['ID'],
-            "icon": (json_obj['Icon'],),
+            'name': json_obj.get('ItemResult').get('Name'),
+            'id': json_obj.get('ItemResult').get('ID'),
+            "icon": json_obj.get('Icon'),
             'ingredients': []
         }
         node = json_obj
@@ -93,29 +93,29 @@ def get_recipe_tree(recipe_id: int) -> dict:
             if node['AmountIngredient' + str(i)] != 0:
                 item['ingredients'].append({
                     "index": i,
-                    "id": node['ItemIngredient' + str(i)]['ID'],
-                    "name": node['ItemIngredient' + str(i)]['Name'],
-                    "amount": node['AmountIngredient' + str(i)],
-                    "icon": node['ItemIngredient' + str(i)]['Icon'],
+                    "id": node.get('ItemIngredient' + str(i)).get('ID'),
+                    "name": node.get('ItemIngredient' + str(i)).get('Name'),
+                    "amount": node.get('AmountIngredient' + str(i)),
+                    "icon": node.get('ItemIngredient' + str(i)).get('Icon'),
                     "ingredients": []
                 })
         
-        for idx, ingredient in enumerate(item['ingredients']):
+        for idx, ingredient in enumerate(item.get('ingredients')):
             index = idx
-            subnodes = node['ItemIngredientRecipe' + str(index)]
+            subnodes = node.get('ItemIngredientRecipe' + str(index))
             if subnodes is None:
                 continue
             subnode = subnodes[0]  # if there are multiple jobs who can create the item, this has a multiple elements
             for i in range(8):
-                if subnode['AmountIngredient' + str(i)] != 0:
+                if subnode.get('AmountIngredient' + str(i)) != 0:
                     item['ingredients'][index]['ingredients'].append({
                         "index": i,
-                        "id": subnode['ItemIngredient' + str(i)]['ID'],
-                        "name": subnode['ItemIngredient' + str(i)]['Name'],
-                        "amount": subnode['AmountIngredient' + str(i)],
-                        "icon": subnode['ItemIngredient' + str(i)]['Icon']
+                        "id": subnode.get('ItemIngredient' + str(i)).get('ID'),
+                        "name": subnode.get('ItemIngredient' + str(i)).get('Name'),
+                        "amount": subnode.get('AmountIngredient' + str(i)),
+                        "icon": subnode.get('ItemIngredient' + str(i)).get('Icon')
                     })
-                    item['ingredients'][index]["amount_result"] = subnode['AmountResult']
+                    item['ingredients'][index]["amount_result"] = subnode.get('AmountResult')
         cache(cache_type='recipe', data=item)
 
     return item
@@ -126,11 +126,11 @@ def get_prices(item: dict) -> dict:
     # |--------- base url ---------|-world|-ids*-|        ^         ^
     #                           how many listings per item?      history size
     # * can be a single id or a comma-separated list of ids
-    item_ids = [item['id']]
-    for itm in item['ingredients']:
-        item_ids.append(itm['id'])
-        for itm_2 in itm['ingredients']:
-            item_ids.append(itm_2['id'])
+    item_ids = [item.get('id')]
+    for itm in item.get('ingredients'):
+        item_ids.append(itm.get('id'))
+        for itm_2 in itm.get('ingredients'):
+            item_ids.append(itm_2.get('id'))
 
     item_ids = list(set(item_ids))
 
@@ -149,55 +149,53 @@ def get_prices(item: dict) -> dict:
             break
     
     sum_itm = 0
-    for itm in item['ingredients']:
-        id_ = itm['id']
+    for itm in item.get('ingredients'):
+        id_ = itm.get('id')
         
         # make sure there are enough listings to craft at least one item for given price
         # this may result in a higher price though
         quantity = 0
         listing_n = 0
-        while quantity < itm['amount']:
-            quantity += prices['items'][str(id_)]['listings'][listing_n]['quantity']
+        while quantity < itm.get('amount'):
+            quantity += prices.get('items').get(str(id_)).get('listings').get(listing_n).get('quantity')
             listing_n += 1
-        itm['price'] = prices['items'][str(id_)]['listings'][listing_n]['pricePerUnit'] # without tax
+        itm['price'] = prices.get('items').get(str(id_)).get('listings').get(listing_n).get('pricePerUnit')
         sum_itm_2 = 0
-        for itm_2 in itm['ingredients']:
+        for itm_2 in itm.get('ingredients'):
             id_ = itm_2['id']
             quantity = 0
             listing_n = 0
-            while quantity < itm_2['amount']:
-                quantity += prices['items'][str(id_)]['listings'][listing_n]['quantity']
+            while quantity < itm_2.get('amount'):
+                quantity += prices.get('items').get(str(id_)).get('listings').get(listing_n).get('quantity')
                 listing_n += 1
-            itm_2['price'] = prices['items'][str(id_)]['listings'][listing_n]['pricePerUnit'] # without tax
-            # print(itm_2['name'], 'costs', itm_2['price'], 'x' + str(itm_2['amount']))
-            sum_itm_2 += itm_2['price']*itm_2['amount']
-        if len(itm['ingredients']) != 0:
-            itm['price_if_crafted'] = int(sum_itm_2/itm['amount_result'])
+            itm_2['price'] = prices.get('items').get(str(id_)).get('listings').get(listing_n).get('pricePerUnit')
+            sum_itm_2 += itm_2.get('price')*itm_2.get('amount')
+        if len(itm.get('ingredients')) != 0:
+            itm['price_if_crafted'] = int(sum_itm_2/itm.get('amount_result'))
         
-        sum_itm += itm['price']*itm['amount']
+        sum_itm += itm.get('price')*itm.get('amount')
     
     return item
 
 
 def display_result(item):  # name subject to change
     txt = ''
-    txt += f"{item['name']:24.23}{'#':>4}{'craft':>7}{'buy':>7}\n"
-    for ingredient in item['ingredients']:
-        txt += (f"  {ingredient['name']:22.21}{ingredient['amount']:>4}{ingredient.get('price_if_crafted', ''):>7}"
-                f"{ingredient['price']:>7}\n")
-        for sub_ingredient in ingredient['ingredients']:
-            txt += f"    {sub_ingredient['name']:20.19}{sub_ingredient['amount']:4}{'':>7}{sub_ingredient['price']:>7}\n"
+    txt += f"{item.get('name'):24.23}{'#':>4}{'craft':>7}{'buy':>7}\n"
+    for ingredient in item.get('ingredients'):
+        txt += (f"  {ingredient.get('name'):22.21}{ingredient.get('amount'):>4}"
+                f"{ingredient.get('price_if_crafted', ''):>7}{ingredient.get('price'):>7}\n")
+        for sub_ingredient in ingredient.get('ingredients'):
+            txt += (f"    {sub_ingredient.get('name'):20.19}{sub_ingredient.get('amount'):4}{'':>7}"
+                    f"{sub_ingredient.get('price'):>7}\n")
     return txt
     
 
 def generate_result(item_name):
-    # item_name = sys.argv[1]
     cache()
     recipe_id = item_name_to_id(item_name)
     item = get_recipe_tree(recipe_id)
     item = get_prices(item)
     return item
-    # return display_result(item)
 
 
 def get_icon_list(recipe: dict) -> list[str]:
