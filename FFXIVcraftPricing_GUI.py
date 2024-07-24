@@ -53,12 +53,13 @@ class MainWindow(QtWidgets.QMainWindow):
 
         search_str = "Acqua Pazza"
         self.setWindowTitle(BASE_TITLE + ' - ' + search_str)
-        # data = XIVcp.generate_result(search_str)
+        data = XIVcp.generate_result(search_str)
+        '''
         with open('tmp.json', 'r', encoding="utf-8") as f:
             import json
             # f.write(json.dumps(data))
             data = json.loads(f.read())
-
+        '''
         data_tbl = []
         
         for itm in data.get('ingredients'):
@@ -79,7 +80,10 @@ class MainWindow(QtWidgets.QMainWindow):
                     itm_itm.get('price'), 
                     itm_itm.get('price_if_crafted', '')
                 ])
-        
+
+        icons = XIVcp.get_icon_list(data)
+        XIVcp.get_icons(icons)
+
         self.model = TableModel(data_tbl)
 
         self.table.setModel(self.model)

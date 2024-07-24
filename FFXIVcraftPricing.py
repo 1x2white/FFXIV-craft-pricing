@@ -1,5 +1,7 @@
 import json
 import os
+import time
+
 import requests
 
 
@@ -196,6 +198,29 @@ def generate_result(item_name):
     item = get_prices(item)
     return item
     # return display_result(item)
+
+
+def get_icon_list(recipe: dict) -> list[str]:
+    icons = [recipe.get('icon')]
+    for item in recipe:
+        icons.append(item.get('icon'))
+        for subitem in item.get('ingredients'):
+            icons.append(subitem.get('icon'))
+    return icons
+
+
+def get_icons(icon_urls: list[str]) -> None:
+    # fetch icons from api and cache them
+    icon_urls = list(set(icon_urls))  # make sure every url is unique to reduce overhead
+    for num, url in enumerate(icon_urls):
+        icon_name = url.split('/')[-1]
+        res = requests.get(url, verify=CHECK_CERT, stream=True)
+        if res.status_code == 200:
+            with open('cache/icons/' + icon_name, 'wb') as f:
+                f.write(res.content)
+        # respect the API's rate limit. Better way would be to time the actual request, but this way is quick and dirty.
+        if num % XIVAPI_RATE_LIMIT == 0 and num > 0:
+            time.sleep(1.)
 
 
 # TODO
