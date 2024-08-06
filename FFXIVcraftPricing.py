@@ -214,7 +214,6 @@ def cache_icons(icon_urls: list[str]) -> None:
     # fetch icons from api and cache them
     # print(icon_urls)
     icon_urls = list(set(icon_urls))  # make sure every url is unique to reduce overhead
-    print(icon_urls)
     for num, url in enumerate(icon_urls):
         icon_name = url.split('/')[-1]
         # don't fetch again if icon is already present

@@ -66,6 +66,7 @@ class MainWindow(QtWidgets.QWidget):
         self.search_bar = QtWidgets.QLineEdit()
         self.search_bar.setPlaceholderText("Search item...")
         self.submit_btn = QtWidgets.QPushButton('Submit', self)
+        self.submit_btn.setIcon(QtGui.QIcon())
         self.submit_btn.clicked.connect(self.search_item)
         self.header_layout = QtWidgets.QHBoxLayout()
         self.header_layout.addWidget(self.search_bar)
@@ -85,21 +86,27 @@ class MainWindow(QtWidgets.QWidget):
         self.setLayout(self.layout)
 
     def search_item(self):
+        self.submit_btn.setEnabled(False)
+        self.submit_btn.setText("Loading...")
+        QtWidgets.QApplication.processEvents()  # Force interface update
+
         text = self.search_bar.text()
         if len(text.strip()) == 0:
             return
+
         self.setWindowTitle(BASE_TITLE + ' - ' + text)
-        print(self.search_bar.text())
 
         data = XIVcp.generate_result(text)
+        QtWidgets.QApplication.processEvents()  # Force interface update
         if data is None:
             print("Nothing found")
+            self.submit_btn.setEnabled(True)
             return
 
         data_tbl = []
         lookup_tbl = {
             data.get('name'): {
-                'icon_id': data.get('icon')[0].split('/')[-1],
+                'icon_id': data.get('icon').split('/')[-1],
             }
         }
 
@@ -111,6 +118,7 @@ class MainWindow(QtWidgets.QWidget):
                 itm.get('price'),
                 itm.get('price_if_crafted', '')
             ])
+            QtWidgets.QApplication.processEvents()  # Force interface update
             lookup_tbl[name] = {
                 'item_id': itm.get('icon').split('/')[-1],
                 'depth': 1
@@ -123,14 +131,19 @@ class MainWindow(QtWidgets.QWidget):
                     itm_itm.get('price'),
                     itm_itm.get('price_if_crafted', '')
                 ])
+                QtWidgets.QApplication.processEvents()  # Force interface update
                 lookup_tbl[itm_itm.get('name')] = {
                     'item_id': itm_itm.get('icon').split('/')[-1],
                     'depth': 2
                 }
 
         icons = XIVcp.get_icon_list(data)
+        QtWidgets.QApplication.processEvents()  # Force interface update
         XIVcp.cache_icons(icons)
-        self.setWindowIcon(QtGui.QIcon('cache/icons/' + lookup_tbl.get(text).get('icon_id')))
+        QtWidgets.QApplication.processEvents()  # Force interface update
+        icon_p = 'cache/icons/' + lookup_tbl.get(text).get('icon_id')
+        QtWidgets.QApplication.processEvents()  # Force interface update
+        self.setWindowIcon(QtGui.QIcon(icon_p))
         self.model = TableModel(data_tbl, lookup_tbl)
         self.table.setModel(self.model)
         tbl_header = self.table.horizontalHeader()
@@ -143,6 +156,10 @@ class MainWindow(QtWidgets.QWidget):
         tbl_header.resizeSection(1, int(500 / 2 / 3))
         tbl_header.resizeSection(2, int(500 / 2 / 3))
         tbl_header.resizeSection(3, int(500 / 2 / 3))
+
+        self.submit_btn.setEnabled(True)
+        self.submit_btn.setText("Submit")
+        self.submit_btn.setIcon(QtGui.QIcon())
 
 
 app = QtWidgets.QApplication(sys.argv)
