@@ -10,7 +10,7 @@ BASE_TITLE = "XIV Craft Pricing"
 
 
 class TableModel(QtCore.QAbstractTableModel):
-    def __init__(self, data, lookup):
+    def __init__(self, data=None, lookup=None):
         super(TableModel, self).__init__()
         self._data = data
         self.icon_lookup = lookup
@@ -42,10 +42,10 @@ class TableModel(QtCore.QAbstractTableModel):
         # Cell Icon Decor
         if role == Qt.ItemDataRole.DecorationRole and index.column() == 0:
             value = self._data[index.row()][index.column()].strip()
-            icon_name = self.icon_lookup.get(value)
+            icon_name = self.icon_lookup.get(value).get('item_id')
             cwd = str(pathlib.Path(__file__).parent.absolute())
             icon_path = cwd + '/cache/icons/' + icon_name
-            icon = QtGui.QIcon(icon_path)
+            icon = QtGui.QIcon(icon_path).pixmap(40, 40)
             return icon
 
     def rowCount(self, index: int = ...):
@@ -55,65 +55,94 @@ class TableModel(QtCore.QAbstractTableModel):
         return len(self._data[0])
 
 
-class MainWindow(QtWidgets.QMainWindow):
+class MainWindow(QtWidgets.QWidget):
     def __init__(self):
-        super().__init__()     
-        
-        self.setWindowTitle(BASE_TITLE)
-        self.setFixedSize(500, 500)
+        super().__init__()
 
+        self.model = None
+        search_str = "Acqua Pazza"
+
+        # Search bar + submit button at the top
+        self.search_bar = QtWidgets.QLineEdit()
+        self.search_bar.setPlaceholderText("Search item...")
+        self.submit_btn = QtWidgets.QPushButton('Submit', self)
+        self.submit_btn.clicked.connect(self.search_item)
+        self.header_layout = QtWidgets.QHBoxLayout()
+        self.header_layout.addWidget(self.search_bar)
+        self.header_layout.addWidget(self.submit_btn)
+
+        # Table for results in the middle
         self.table = QtWidgets.QTableView()
 
-        search_str = "Acqua Pazza"
-        self.setWindowTitle(BASE_TITLE + ' - ' + search_str)
+        # Window layout
+        self.setWindowTitle(BASE_TITLE)
+        self.setBaseSize(500, 500)
+        self.setSizePolicy(QtWidgets.QSizePolicy.Policy.Fixed, QtWidgets.QSizePolicy.Policy.Expanding)
+        self.setWindowIcon(QtGui.QIcon('icon'))
+        self.layout = QtWidgets.QVBoxLayout()
+        self.layout.addLayout(self.header_layout)
+        self.layout.addWidget(self.table)
+        self.setLayout(self.layout)
 
-        # data = XIVcp.generate_result(search_str)
-        with open('tmp.json', 'r', encoding="utf-8") as f:
-            import json
-            # f.write(json.dumps(data))
-            data = json.loads(f.read())
+    def search_item(self):
+        text = self.search_bar.text()
+        if len(text.strip()) == 0:
+            return
+        self.setWindowTitle(BASE_TITLE + ' - ' + text)
+        print(self.search_bar.text())
+
+        data = XIVcp.generate_result(text)
+        if data is None:
+            print("Nothing found")
+            return
 
         data_tbl = []
-        lookup_tbl = {data.get('name'): data.get('icon')[0].split('/')[-1]}
-        
+        lookup_tbl = {
+            data.get('name'): {
+                'icon_id': data.get('icon')[0].split('/')[-1],
+            }
+        }
+
         for itm in data.get('ingredients'):
             name = itm.get('name')
             data_tbl.append([
-                name, 
-                itm.get('amount'), 
-                itm.get('price'), 
+                name,
+                itm.get('amount'),
+                itm.get('price'),
                 itm.get('price_if_crafted', '')
             ])
-            lookup_tbl[name] = itm.get('icon').split('/')[-1]
-            
+            lookup_tbl[name] = {
+                'item_id': itm.get('icon').split('/')[-1],
+                'depth': 1
+            }
+
             for itm_itm in itm.get('ingredients'):
                 data_tbl.append([
-                    '    ' + itm_itm.get('name'), 
-                    itm_itm.get('amount'), 
-                    itm_itm.get('price'), 
+                    '    ' + itm_itm.get('name'),
+                    itm_itm.get('amount'),
+                    itm_itm.get('price'),
                     itm_itm.get('price_if_crafted', '')
                 ])
-                lookup_tbl[itm_itm.get('name')] = itm_itm.get('icon').split('/')[-1]
+                lookup_tbl[itm_itm.get('name')] = {
+                    'item_id': itm_itm.get('icon').split('/')[-1],
+                    'depth': 2
+                }
 
         icons = XIVcp.get_icon_list(data)
-        XIVcp.get_icons(icons)
-        self.setWindowIcon(QtGui.QIcon('cache/icons/' + lookup_tbl.get(search_str)))
-
+        XIVcp.cache_icons(icons)
+        self.setWindowIcon(QtGui.QIcon('cache/icons/' + lookup_tbl.get(text).get('icon_id')))
         self.model = TableModel(data_tbl, lookup_tbl)
-
         self.table.setModel(self.model)
-        self.setCentralWidget(self.table)
-        
-        header = self.table.horizontalHeader() 
-        header.setSectionResizeMode(0, QtWidgets.QHeaderView.ResizeMode.Stretch)
-        header.setSectionResizeMode(1, QtWidgets.QHeaderView.ResizeMode.Fixed)
-        header.setSectionResizeMode(2, QtWidgets.QHeaderView.ResizeMode.Fixed)
-        header.setSectionResizeMode(3, QtWidgets.QHeaderView.ResizeMode.Fixed)
+        tbl_header = self.table.horizontalHeader()
+        tbl_header.setSectionResizeMode(0, QtWidgets.QHeaderView.ResizeMode.Stretch)
+        tbl_header.setSectionResizeMode(1, QtWidgets.QHeaderView.ResizeMode.Fixed)
+        tbl_header.setSectionResizeMode(2, QtWidgets.QHeaderView.ResizeMode.Fixed)
+        tbl_header.setSectionResizeMode(3, QtWidgets.QHeaderView.ResizeMode.Fixed)
 
         # window with = 500. half the width is shared between 3 cols.
-        header.resizeSection(1, int(500/2/3))
-        header.resizeSection(2, int(500/2/3))
-        header.resizeSection(3, int(500/2/3))
+        tbl_header.resizeSection(1, int(500 / 2 / 3))
+        tbl_header.resizeSection(2, int(500 / 2 / 3))
+        tbl_header.resizeSection(3, int(500 / 2 / 3))
 
 
 app = QtWidgets.QApplication(sys.argv)

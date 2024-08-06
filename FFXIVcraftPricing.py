@@ -194,13 +194,15 @@ def display_result(item):  # name subject to change
 def generate_result(item_name):
     cache()
     recipe_id = item_name_to_id(item_name)
+    if recipe_id is None:
+        return None
     item = get_recipe_tree(recipe_id)
     item = get_prices(item)
     return item
 
 
 def get_icon_list(recipe: dict) -> list[str]:
-    icons = [recipe.get('icon')[0]]
+    icons = [recipe.get('icon')]
     for item in recipe.get('ingredients'):
         icons.append(item.get('icon'))
         for subitem in item.get('ingredients'):
@@ -208,19 +210,20 @@ def get_icon_list(recipe: dict) -> list[str]:
     return icons
 
 
-def get_icons(icon_urls: list[str]) -> None:
+def cache_icons(icon_urls: list[str]) -> None:
     # fetch icons from api and cache them
     # print(icon_urls)
     icon_urls = list(set(icon_urls))  # make sure every url is unique to reduce overhead
+    print(icon_urls)
     for num, url in enumerate(icon_urls):
         icon_name = url.split('/')[-1]
-
         # don't fetch again if icon is already present
         if is_cached(icon_name.split('.')[0], 'icon'):
             continue
         res = requests.get(XIVAPI_URL + url, verify=CHECK_CERT, stream=True)
         if res.status_code == 200:
-            with open('cache/icons/' + icon_name, 'wb') as f:
+            base_path = os.path.dirname(os.path.realpath(__file__))
+            with open(os.path.join(base_path, 'cache', 'icons', icon_name), 'wb') as f:
                 f.write(res.content)
         # respect the API's rate limit. Better way would be to time the actual request, but this way is quick and dirty.
         if num % XIVAPI_RATE_LIMIT == 0 and num > 0:
