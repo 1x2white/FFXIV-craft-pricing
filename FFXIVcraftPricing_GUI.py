@@ -65,7 +65,7 @@ class MainWindow(QtWidgets.QWidget):
         # Search bar + submit button at the top
         self.search_bar = QtWidgets.QLineEdit()
         self.search_bar.setPlaceholderText("Search item...")
-        self.submit_btn = QtWidgets.QPushButton('Submit', self)
+        self.submit_btn = QtWidgets.QPushButton('Search', self)
         self.submit_btn.setIcon(QtGui.QIcon())
         self.submit_btn.clicked.connect(self.search_item)
         self.header_layout = QtWidgets.QHBoxLayout()
@@ -99,8 +99,13 @@ class MainWindow(QtWidgets.QWidget):
         data = XIVcp.generate_result(text)
         QtWidgets.QApplication.processEvents()  # Force interface update
         if data is None:
-            print("Nothing found")
+            popup = QtWidgets.QMessageBox.warning(self,
+                                                  "Nothing found",
+                                                  "Your query returned no results.\n"
+                                                  "Please make sure to provide the item's full name."
+                                                  )
             self.submit_btn.setEnabled(True)
+            self.submit_btn.setText("Search")
             return
 
         data_tbl = []
@@ -158,7 +163,7 @@ class MainWindow(QtWidgets.QWidget):
         tbl_header.resizeSection(3, int(500 / 2 / 3))
 
         self.submit_btn.setEnabled(True)
-        self.submit_btn.setText("Submit")
+        self.submit_btn.setText("Search")
         self.submit_btn.setIcon(QtGui.QIcon())
 
 
