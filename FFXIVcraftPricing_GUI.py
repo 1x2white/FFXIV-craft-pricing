@@ -6,7 +6,7 @@ import FFXIVcraftPricing as XIVcp
 BASE_TITLE = "XIV Craft Pricing"
 
 
-class MainWindow(QtWidgets.QWidget):
+class MainWindow(QtWidgets.QMainWindow):
     def __init__(self):
         super().__init__()
 
@@ -19,8 +19,15 @@ class MainWindow(QtWidgets.QWidget):
         self.header_layout.addWidget(self.search_bar)
         self.header_layout.addWidget(self.submit_btn)
 
+        # Containers
+        self.centralWidget = QtWidgets.QWidget(parent=self)
+        self.centralWidget.setSizePolicy(QtWidgets.QSizePolicy.Policy.Expanding, QtWidgets.QSizePolicy.Policy.Expanding)
+        self.layout = QtWidgets.QVBoxLayout()
+        self.layout.addLayout(self.header_layout)
+
         # Tree for results in the middle of the window
-        self.tree = QtWidgets.QTreeWidget()
+        self.tree = QtWidgets.QTreeWidget(parent=self.centralWidget)
+        self.layout.addWidget(self.tree)
         self.tree.setColumnCount(4)
         self.tree.setHeaderLabels(["Item", "Amount", "P(c)", "P(b)"])
         self.tree.setStyleSheet('''
@@ -32,13 +39,10 @@ class MainWindow(QtWidgets.QWidget):
 
         # Window layout
         self.setWindowTitle(BASE_TITLE)
-        self.setBaseSize(500, 500)
-        self.setSizePolicy(QtWidgets.QSizePolicy.Policy.Expanding, QtWidgets.QSizePolicy.Policy.Expanding)
         self.setWindowIcon(QtGui.QIcon('icon'))
-        self.layout = QtWidgets.QVBoxLayout()
-        self.layout.addLayout(self.header_layout)
-        self.layout.addWidget(self.tree)
-        self.setLayout(self.layout)
+        self.setBaseSize(300, 200)
+        self.centralWidget.setLayout(self.layout)
+        self.setCentralWidget(self.centralWidget)
 
     def search_item(self):
         self.submit_btn.setEnabled(False)
@@ -69,6 +73,7 @@ class MainWindow(QtWidgets.QWidget):
 
         self.tree.clear()
         tree_items = []
+        rows = 0
         for itm in data.get('ingredients'):
             name = itm.get('name')
             item = QtWidgets.QTreeWidgetItem([
@@ -86,8 +91,10 @@ class MainWindow(QtWidgets.QWidget):
                     str(itm_itm.get('price_if_crafted', ''))
                 ])
                 item_2.setIcon(0, QtGui.QIcon('cache/icons/' + itm_itm.get('icon').split('/')[-1]))
+                rows += 1
                 item.addChild(item_2)
             item.setIcon(0, QtGui.QIcon('cache/icons/' + itm.get('icon').split('/')[-1]))
+            rows += 1
             tree_items.append(item)
 
         icon_p = ('cache/icons/' + data.get('icon').split('/')[-1])
@@ -96,16 +103,22 @@ class MainWindow(QtWidgets.QWidget):
         self.tree.insertTopLevelItems(0, tree_items)
         self.tree.expandAll()
 
-        # Set column width
-        self.tree.setColumnWidth(0, int(500 / 2))
-        self.tree.setColumnWidth(1, int(500 / 2 / 3))
-        self.tree.setColumnWidth(2, int(500 / 2 / 3))
-        self.tree.setColumnWidth(3, int(500 / 2 / 3))
-        QtWidgets.QApplication.processEvents()  # Force interface update
+        # Set column width to fit contents
+        self.tree.header().setSectionResizeMode(0, QtWidgets.QHeaderView.ResizeMode.ResizeToContents)
+        self.tree.header().setSectionResizeMode(1, QtWidgets.QHeaderView.ResizeMode.ResizeToContents)
+        self.tree.header().setSectionResizeMode(2, QtWidgets.QHeaderView.ResizeMode.ResizeToContents)
+        self.tree.header().setSectionResizeMode(3, QtWidgets.QHeaderView.ResizeMode.ResizeToContents)
 
         # Resize window to fit contents
         self.tree.show()
-        self.resize(self.sizeHint())
+        width = (self.tree.columnWidth(0) +
+                 self.tree.columnWidth(1) +
+                 self.tree.columnWidth(2) +
+                 self.tree.columnWidth(3) +
+                 30)  # window border
+        height = rows * 22 + self.tree.header().sizeHint().height() + self.header_layout.sizeHint().height() + 30
+
+        self.setFixedSize(width, height)
         QtWidgets.QApplication.processEvents()  # Force interface update
 
         # Re-enable search button
