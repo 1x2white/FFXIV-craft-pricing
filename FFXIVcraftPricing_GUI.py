@@ -33,13 +33,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.tree = QtWidgets.QTreeWidget(parent=self.centralWidget)
         self.layout.addWidget(self.tree)
         self.tree.setColumnCount(4)
-        self.tree.setHeaderLabels(["Item", "Amount", "P(c)", "P(b)"])
-        self.tree.setStyleSheet('''
-            QTreeView::item:hover {
-                background: qlineargradient(x1: 0, y1: 0, x2: 0, y2: 1, stop: 0 #e7effd, stop: 1 #cbdaf1);
-                border: 1px solid #bfcde4;
-            }
-        ''')
+        self.tree.setHeaderLabels(["Item", "Amount", "MB", "craft"])
 
         # Window layout
         self.setWindowTitle(BASE_TITLE)
@@ -47,6 +41,16 @@ class MainWindow(QtWidgets.QMainWindow):
         self.setBaseSize(300, 200)
         self.centralWidget.setLayout(self.layout)
         self.setCentralWidget(self.centralWidget)
+
+        # Styles
+        self.tree.setStyleSheet('''
+                    QTreeView::item:hover {
+                        background: qlineargradient(x1: 0, y1: 0, x2: 0, y2: 1, stop: 0 #e7effd, stop: 1 #cbdaf1);
+                        border: 1px solid #bfcde4;
+                    }
+                ''')
+        self.green_brush = QtGui.QBrush(QtGui.QColor("#E0FAD0"))
+        self.red_brush = QtGui.QBrush(QtGui.QColor("#9C0000"))
 
     def search_item(self):
         self.submit_btn.setEnabled(False)
@@ -86,6 +90,14 @@ class MainWindow(QtWidgets.QMainWindow):
                 str(itm.get('price')),
                 str(itm.get('price_if_crafted', ''))
             ])
+            craft = False
+            # Paint the cheaper variant (buy from MB vs. craft yourself) green
+            if itm.get('price', 1e9) < itm.get('price_if_crafted', 1e9):
+                item.setBackground(2, self.green_brush)
+            elif itm.get('price', 1e9) > itm.get('price_if_crafted', 1e9):
+                item.setBackground(3, self.green_brush)
+                craft = True
+
             for itm_itm in itm.get('ingredients'):
                 name_2 = itm_itm.get('name')
                 item_2 = QtWidgets.QTreeWidgetItem([
@@ -94,6 +106,11 @@ class MainWindow(QtWidgets.QMainWindow):
                     str(itm_itm.get('price')),
                     str(itm_itm.get('price_if_crafted', ''))
                 ])
+                # Paint ingredients green if cheaper, else paint text red
+                if craft:
+                    item_2.setBackground(2, self.green_brush)
+                else:
+                    item_2.setForeground(0, self.red_brush)
                 item_2.setIcon(0, QtGui.QIcon('cache/icons/' + itm_itm.get('icon').split('/')[-1]))
                 rows += 1
                 item.addChild(item_2)
@@ -106,6 +123,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.setWindowIcon(QtGui.QIcon(icon_p))
         self.tree.insertTopLevelItems(0, tree_items)
         self.tree.expandAll()
+        self.tree.itemClicked.connect(self.on_tree_item_clicked)
 
         # Set column width to fit contents
         self.tree.header().setSectionResizeMode(0, QtWidgets.QHeaderView.ResizeMode.ResizeToContents)
@@ -129,6 +147,11 @@ class MainWindow(QtWidgets.QMainWindow):
         self.submit_btn.setEnabled(True)
         self.submit_btn.setText("Search")
         self.submit_btn.setIcon(QtGui.QIcon())
+
+    @QtCore.pyqtSlot(QtWidgets.QTreeWidgetItem, int)
+    def on_tree_item_clicked(self, item, column):
+        # TODO: check if this item is craftable as well. If it's craftable, fetch data and append as children
+        print(item, column, item.text(column))
 
 
 app = QtWidgets.QApplication(sys.argv)
