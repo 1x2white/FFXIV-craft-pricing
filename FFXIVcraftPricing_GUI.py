@@ -43,14 +43,18 @@ class MainWindow(QtWidgets.QMainWindow):
         self.setCentralWidget(self.centralWidget)
 
         # Styles
+        self.tree.header().setDefaultAlignment(Qt.AlignmentFlag.AlignCenter)
         self.tree.setStyleSheet('''
+                    QTreeView::item {
+                        border-right: 1px solid #eeeeee;
+                    }
                     QTreeView::item:hover {
                         background: qlineargradient(x1: 0, y1: 0, x2: 0, y2: 1, stop: 0 #e7effd, stop: 1 #cbdaf1);
                         border: 1px solid #bfcde4;
                     }
                 ''')
-        self.green_brush = QtGui.QBrush(QtGui.QColor("#E0FAD0"))
-        self.red_brush = QtGui.QBrush(QtGui.QColor("#9C0000"))
+        self.light_green = QtGui.QColor("#E0FAD0")
+        self.dark_red = QtGui.QColor("#9C0000")
 
     def search_item(self):
         self.submit_btn.setEnabled(False)
@@ -87,7 +91,7 @@ class MainWindow(QtWidgets.QMainWindow):
         for itm in data.get('ingredients'):
             name = itm.get('name')
             item = QtWidgets.QTreeWidgetItem([
-                name,
+                name + (f' ({itm.get("amount_result")})' if itm.get("amount_result", 1) > 1 else 'p'),
                 str(itm.get('amount')),
                 str(itm.get('price')),
                 str(itm.get('price_if_crafted', ''))
@@ -95,9 +99,9 @@ class MainWindow(QtWidgets.QMainWindow):
             craft = False
             # Paint the cheaper variant (buy from MB vs. craft yourself) green
             if itm.get('price', 1e9) < itm.get('price_if_crafted', 1e9):
-                item.setBackground(2, self.green_brush)
+                item.setBackground(2, self.light_green)
             elif itm.get('price', 1e9) > itm.get('price_if_crafted', 1e9):
-                item.setBackground(3, self.green_brush)
+                item.setBackground(3, self.light_green)
                 craft = True
 
             # Align numbers right and set monospace font
@@ -118,9 +122,9 @@ class MainWindow(QtWidgets.QMainWindow):
                 ])
                 # Paint ingredients green if cheaper, else paint text red
                 if craft:
-                    item_2.setBackground(2, self.green_brush)
+                    item_2.setBackground(2, self.light_green)
                 else:
-                    item_2.setForeground(0, self.red_brush)
+                    item_2.setForeground(0, self.dark_red)
 
                 # Align numbers right and set monospace font
                 item_2.setTextAlignment(1, align_right)
@@ -148,7 +152,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.tree.header().setSectionResizeMode(0, QtWidgets.QHeaderView.ResizeMode.ResizeToContents)
         self.tree.header().setSectionResizeMode(1, QtWidgets.QHeaderView.ResizeMode.ResizeToContents)
         self.tree.header().setSectionResizeMode(2, QtWidgets.QHeaderView.ResizeMode.ResizeToContents)
-        self.tree.header().setSectionResizeMode(3, QtWidgets.QHeaderView.ResizeMode.ResizeToContents)
+        self.tree.setColumnWidth(3, 50)
 
         # Resize window to fit contents
         self.tree.show()
