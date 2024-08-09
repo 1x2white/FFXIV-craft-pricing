@@ -80,8 +80,10 @@ class MainWindow(QtWidgets.QMainWindow):
         XIVcp.cache_icons(icons)
 
         self.tree.clear()
-        tree_items = []
-        rows = 0
+        tree_items = QtWidgets.QTreeWidgetItem([data.get('name')])
+        rows = 1  # 1 because the top level node is not counted in the loop
+        align_right = Qt.AlignmentFlag.AlignRight
+        monospace_font = QtGui.QFontDatabase.systemFont(QtGui.QFontDatabase.SystemFont.FixedFont)
         for itm in data.get('ingredients'):
             name = itm.get('name')
             item = QtWidgets.QTreeWidgetItem([
@@ -98,6 +100,14 @@ class MainWindow(QtWidgets.QMainWindow):
                 item.setBackground(3, self.green_brush)
                 craft = True
 
+            # Align numbers right and set monospace font
+            item.setTextAlignment(1, align_right)
+            item.setTextAlignment(2, align_right)
+            item.setTextAlignment(3, align_right)
+            item.setFont(1, monospace_font)
+            item.setFont(2, monospace_font)
+            item.setFont(3, monospace_font)
+
             for itm_itm in itm.get('ingredients'):
                 name_2 = itm_itm.get('name')
                 item_2 = QtWidgets.QTreeWidgetItem([
@@ -111,17 +121,26 @@ class MainWindow(QtWidgets.QMainWindow):
                     item_2.setBackground(2, self.green_brush)
                 else:
                     item_2.setForeground(0, self.red_brush)
+
+                # Align numbers right and set monospace font
+                item_2.setTextAlignment(1, align_right)
+                item_2.setTextAlignment(2, align_right)
+                item_2.setTextAlignment(3, align_right)
+                item_2.setFont(1, monospace_font)
+                item_2.setFont(2, monospace_font)
+                item_2.setFont(3, monospace_font)
+
                 item_2.setIcon(0, QtGui.QIcon('cache/icons/' + itm_itm.get('icon').split('/')[-1]))
                 rows += 1
                 item.addChild(item_2)
             item.setIcon(0, QtGui.QIcon('cache/icons/' + itm.get('icon').split('/')[-1]))
             rows += 1
-            tree_items.append(item)
+            tree_items.addChild(item)
 
         icon_p = ('cache/icons/' + data.get('icon').split('/')[-1])
         QtWidgets.QApplication.processEvents()  # Force interface update
         self.setWindowIcon(QtGui.QIcon(icon_p))
-        self.tree.insertTopLevelItems(0, tree_items)
+        self.tree.insertTopLevelItems(0, [tree_items])
         self.tree.expandAll()
         self.tree.itemClicked.connect(self.on_tree_item_clicked)
 
